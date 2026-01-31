@@ -14,28 +14,32 @@ class ProjectSummary(BaseModel):
     total_files: int
 
 # --- Resources (The "Intelligence") ---
-# These are exposed as static information that the Agent can read to understand Canton/DAML safety.
+# These serve the embedded documentation files as MCP Resources.
+# Agents can read these to understand Canton/DAML architecture.
 
-@mcp.resource("canton://docs/safety-gates")
-def get_safety_gates() -> str:
-    """Returns the core Safety Gates architecture for Canton development."""
-    return """
-    Canton Safety Gates Architecture:
-    Gate 1: DAML Compiler Safety - Patterns must compile successfully.
-    Gate 2: Safety Annotations - Patterns must have safety metadata.
-    Gate 3: Formal Verification - Safety properties must be verified.
-    Gate 4: Production Readiness - Must be production-tested and certified.
-    """
+DOCS_DIR = Path(__file__).parent.parent / "docs"
 
-@mcp.resource("canton://docs/auth-patterns")
-def get_auth_patterns() -> str:
-    """Returns canonical DAML authorization patterns."""
-    return """
-    DAML Authorization Patterns:
-    1. Proposer-Acceptor: Ensures multi-party agreement.
-    2. Delegation: One party authorizes another to act.
-    3. Mandatory Signatories: Contracts cannot be created without required signatures.
-    """
+def _read_doc(filename: str) -> str:
+    """Helper to read documentation files."""
+    doc_path = DOCS_DIR / filename
+    if doc_path.exists():
+        return doc_path.read_text()
+    return f"Error: Documentation file {filename} not found."
+
+@mcp.resource("canton://docs/ledger-model")
+def get_ledger_model() -> str:
+    """Returns the complete DAML Ledger Model documentation."""
+    return _read_doc("daml_ledger_model.md")
+
+@mcp.resource("canton://docs/architecture")
+def get_canton_architecture() -> str:
+    """Returns the Canton Network architecture and deployment guide."""
+    return _read_doc("canton_architecture.md")
+
+@mcp.resource("canton://docs/language-reference")
+def get_daml_language_reference() -> str:
+    """Returns the DAML language reference and syntax guide."""
+    return _read_doc("daml_language_reference.md")
 
 # --- Tools ---
 
