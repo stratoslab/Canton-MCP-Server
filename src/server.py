@@ -41,6 +41,34 @@ def get_daml_language_reference() -> str:
     """Returns the DAML language reference and syntax guide."""
     return _read_doc("daml_language_reference.md")
 
+@mcp.resource("canton://docs/chainsafe-mcp")
+def get_chainsafe_mcp_reference() -> str:
+    """Returns the ChainSafe Canton MCP Server architecture and tool implementation guide."""
+    return _read_doc("chainsafe_mcp_reference.md")
+
+@mcp.resource("canton://docs/llm-architecture")
+def get_llm_architecture() -> str:
+    """Returns the LLM-Primary Architecture for DAML analysis."""
+    return _read_doc("llm_architecture.md")
+
+@mcp.resource("canton://docs/quickstart-demo")
+def get_quickstart_demo() -> str:
+    """Returns the Canton Network Quickstart Demo walkthrough guide."""
+    return _read_doc("canton_quickstart_demo.md")
+
+@mcp.tool()
+def list_available_docs() -> str:
+    """Lists all available Canton/DAML documentation resources."""
+    docs = list(DOCS_DIR.glob("*.md"))
+    if not docs:
+        return "No documentation files found."
+    
+    doc_list = []
+    for doc in sorted(docs):
+        doc_list.append(f"- {doc.stem}: canton://docs/{doc.stem.replace('_', '-')}")
+    
+    return "Available Documentation Resources:\n" + "\n".join(doc_list)
+
 # --- Tools ---
 
 @mcp.tool()
