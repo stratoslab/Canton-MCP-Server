@@ -41,8 +41,19 @@ Add the following to your MCP settings file (e.g., `~/Library/Application Suppor
 }
 ```
 
-## Available Tools
+## Intelligence Features
 
-- `get_project_summary`: Returns a summary of the project (name, dependencies, file count).
+This server includes embedded knowledge about Canton and DAML:
+
+### Resources
+Agents can read these specialized resources to understand Canton architecture:
+- `canton://docs/safety-gates`: Architecture for safety verification.
+- `canton://docs/auth-patterns`: Common DAML authorization patterns.
+
+### Specialized Tools
+- `analyze_daml_safety`: Performs semantic analysis on DAML code to identify missing safety markers.
+- `generate_canton_deployment_script`: Generates tailored scripts for Dev/Prod environments.
+- `get_project_summary`: Returns a summary of the project.
 - `check_server_status`: Returns "OK" if reachable.
+
 
