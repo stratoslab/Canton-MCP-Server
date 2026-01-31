@@ -79,6 +79,16 @@ def get_daml_patterns() -> str:
     """Returns the DAML Design Patterns and Anti-Patterns guide."""
     return _read_doc("daml_patterns.md")
 
+@mcp.resource("canton://docs/splice-overview")
+def get_splice_overview() -> str:
+    """Returns the Splice & Global Synchronizer Overview."""
+    return _read_doc("splice_overview.md")
+
+@mcp.resource("canton://docs/splice-scan-api")
+def get_splice_scan_api() -> str:
+    """Returns the Splice Scan API Reference."""
+    return _read_doc("splice_scan_api.md")
+
 @mcp.tool()
 def add_documentation(filename: str, content: str, description: str = "") -> str:
     """
