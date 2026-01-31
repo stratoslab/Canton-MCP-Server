@@ -13,10 +13,60 @@ class ProjectSummary(BaseModel):
     dependencies: dict[str, str] = Field(default_factory=dict)
     total_files: int
 
+# --- Resources (The "Intelligence") ---
+# These are exposed as static information that the Agent can read to understand Canton/DAML safety.
+
+@mcp.resource("canton://docs/safety-gates")
+def get_safety_gates() -> str:
+    """Returns the core Safety Gates architecture for Canton development."""
+    return """
+    Canton Safety Gates Architecture:
+    Gate 1: DAML Compiler Safety - Patterns must compile successfully.
+    Gate 2: Safety Annotations - Patterns must have safety metadata.
+    Gate 3: Formal Verification - Safety properties must be verified.
+    Gate 4: Production Readiness - Must be production-tested and certified.
+    """
+
+@mcp.resource("canton://docs/auth-patterns")
+def get_auth_patterns() -> str:
+    """Returns canonical DAML authorization patterns."""
+    return """
+    DAML Authorization Patterns:
+    1. Proposer-Acceptor: Ensures multi-party agreement.
+    2. Delegation: One party authorizes another to act.
+    3. Mandatory Signatories: Contracts cannot be created without required signatures.
+    """
+
 # --- Tools ---
 
 @mcp.tool()
+async def analyze_daml_safety(code: str) -> str:
+    """
+    Analyzes DAML code against the Canton Safety Gates.
+    This simulates the 'intelligent' reasoning by checking for specific safety markers.
+    """
+    issues = []
+    if "signatory" not in code.lower():
+        issues.append("Warning: No signatories defined. This contract might be unauthorized.")
+    if "controller" not in code.lower():
+        issues.append("Warning: No controllers defined. The contract may be immutable/unusable.")
+    
+    if not issues:
+        return "✅ DAML code passes basic safety gate analysis."
+    return "❌ Safety Issues Found:\n- " + "\n- ".join(issues)
+
+@mcp.tool()
+def generate_canton_deployment_script(network_type: str = "dev") -> str:
+    """
+    Generates a starter deployment script for a Canton network.
+    """
+    if network_type == "prod":
+        return "# PROD DEPLOYMENT\n# 1. Verify DCAP settings\n# 2. Check x402 payment routes\n# 3. Submit to Canton Ledger"
+    return "# DEV DEPLOYMENT\n# 1. daml build\n# 2. daml ledger upload-dar --host localhost --port 6865"
+
+@mcp.tool()
 def get_project_summary(project_path: str = ".") -> str:
+
     """
     Reads the package.json and counts files in the specified project path to provide a summary.
     Arguments:
