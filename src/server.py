@@ -202,12 +202,20 @@ if __name__ == "__main__":
         
         print(f"Starting Canton Ledgerview MCP Server on {host}:{port}")
         
-        # Create a simple HTTP server that exposes MCP over HTTP
+        # Create HTTP server with MCP endpoints
         import uvicorn
-        from fastapi import FastAPI
+        from fastapi import FastAPI, HTTPException
         from fastapi.responses import JSONResponse
+        from pydantic import BaseModel
+        from typing import Dict, Any, List
         
         app = FastAPI(title="Canton Ledgerview MCP Server")
+        
+        class ToolCallRequest(BaseModel):
+            arguments: Dict[str, Any] = {}
+        
+        class ResourceReadRequest(BaseModel):
+            uri: str
         
         @app.get("/")
         async def root():
@@ -221,14 +229,166 @@ if __name__ == "__main__":
         async def list_tools():
             return {
                 "tools": [
-                    "analyze_daml_safety",
-                    "generate_canton_deployment_script", 
-                    "get_project_summary",
-                    "check_server_status",
-                    "list_available_docs",
-                    "add_documentation"
+                    {"name": "analyze_daml_safety", "description": "Analyzes DAML code against Canton Safety Gates"},
+                    {"name": "generate_canton_deployment_script", "description": "Generates Canton deployment script"},
+                    {"name": "get_project_summary", "description": "Returns project summary"},
+                    {"name": "check_server_status", "description": "Returns server status"},
+                    {"name": "list_available_docs", "description": "Lists available documentation"},
+                    {"name": "add_documentation", "description": "Adds new documentation"}
                 ]
             }
+        
+        @app.post("/tools/{tool_name}/call")
+        async def call_tool(tool_name: str, request: ToolCallRequest):
+            try:
+                args = request.arguments
+                
+                if tool_name == "analyze_daml_safety":
+                    code = args.get("code", "")
+                    issues = []
+                    if "signatory" not in code.lower():
+                        issues.append("Warning: No signatories defined. This contract might be unauthorized.")
+                    if "controller" not in code.lower():
+                        issues.append("Warning: No controllers defined. The contract may be immutable/unusable.")
+                    
+                    if not issues:
+                        result = "✅ DAML code passes basic safety gate analysis."
+                    else:
+                        result = "❌ Safety Issues Found:\n- " + "\n- ".join(issues)
+                        
+                elif tool_name == "generate_canton_deployment_script":
+                    network_type = args.get("network_type", "dev")
+                    if network_type == "prod":
+                        result = "# PROD DEPLOYMENT\n# 1. Verify DCAP settings\n# 2. Check x402 payment routes\n# 3. Submit to Canton Ledger"
+                    else:
+                        result = "# DEV DEPLOYMENT\n# 1. daml build\n# 2. daml ledger upload-dar --host localhost --port 6865"
+                        
+                elif tool_name == "get_project_summary":
+                    project_path = args.get("project_path", ".")
+                    base_path = Path(project_path).resolve()
+                    
+                    package_json_path = base_path / "package.json"
+                    if not package_json_path.exists():
+                        result = f"Error: No package.json found at {base_path}"
+                    else:
+                        try:
+                            with open(package_json_path, 'r') as f:
+                                data = json.load(f)
+                                
+                            name = data.get("name", "Unknown")
+                            deps = data.get("dependencies", {})
+                            
+                            file_count = 0
+                            for _ in base_path.rglob("*"):
+                                 if "node_modules" not in str(_):
+                                     file_count += 1
+
+                            result = f"Project: {name}\nDependencies: {', '.join(deps.keys())}\nEstimated Files: {file_count}"
+                        except Exception as e:
+                            result = f"Failed to analyze project: {str(e)}"
+                            
+                elif tool_name == "check_server_status":
+                    result = "Server is running and healthy!"
+                    
+                elif tool_name == "list_available_docs":
+                    docs = list(DOCS_DIR.glob("*.md"))
+                    if not docs:
+                        result = "No documentation files found."
+                    else:
+                        doc_list = []
+                        for doc in sorted(docs):
+                            doc_list.append(f"- {doc.stem}: canton://docs/{doc.stem.replace('_', '-')}")
+                        result = "Available Documentation Resources:\n" + "\n".join(doc_list)
+                        
+                elif tool_name == "add_documentation":
+                    filename = args.get("filename", "")
+                    content = args.get("content", "")
+                    description = args.get("description", "")
+                    
+                    if not filename.endswith(".md"):
+                        filename += ".md"
+                    
+                    safe_filename = Path(filename).name
+                    file_path = DOCS_DIR / safe_filename
+                    
+                    try:
+                        if file_path.exists():
+                            result = f"Error: File '{safe_filename}' already exists. Please use a different name or manually update it."
+                        else:
+                            file_path.write_text(content)
+                            result = f"Successfully added documentation: {safe_filename}\nIt will be available via the 'list_available_docs' tool."
+                    except Exception as e:
+                        result = f"Failed to save documentation: {str(e)}"
+                        
+                else:
+                    raise HTTPException(status_code=404, detail=f"Tool '{tool_name}' not found")
+                
+                return {
+                    "content": [{"type": "text", "text": result}],
+                    "isError": False
+                }
+            except Exception as e:
+                return {
+                    "content": [{"type": "text", "text": f"Error: {str(e)}"}],
+                    "isError": True
+                }
+        
+        @app.get("/resources")
+        async def list_resources():
+            return {
+                "resources": [
+                    {"name": "DAML Ledger Model", "uri": "canton://docs/ledger-model", "mimeType": "text/markdown"},
+                    {"name": "Canton Architecture", "uri": "canton://docs/architecture", "mimeType": "text/markdown"},
+                    {"name": "DAML Language Reference", "uri": "canton://docs/language-reference", "mimeType": "text/markdown"},
+                    {"name": "ChainSafe MCP Reference", "uri": "canton://docs/chainsafe-mcp", "mimeType": "text/markdown"},
+                    {"name": "LLM Architecture", "uri": "canton://docs/llm-architecture", "mimeType": "text/markdown"},
+                    {"name": "Quickstart Demo", "uri": "canton://docs/quickstart-demo", "mimeType": "text/markdown"},
+                    {"name": "DAML Introduction", "uri": "canton://docs/daml-intro", "mimeType": "text/markdown"},
+                    {"name": "DAML Patterns", "uri": "canton://docs/daml-patterns", "mimeType": "text/markdown"},
+                    {"name": "Splice Overview", "uri": "canton://docs/splice-overview", "mimeType": "text/markdown"},
+                    {"name": "Splice Scan API", "uri": "canton://docs/splice-scan-api", "mimeType": "text/markdown"}
+                ]
+            }
+        
+        @app.post("/resources/read")
+        async def read_resource(request: ResourceReadRequest):
+            try:
+                uri = request.uri
+                
+                # Map URIs to documentation files
+                uri_to_file = {
+                    "canton://docs/ledger-model": "daml_ledger_model.md",
+                    "canton://docs/architecture": "canton_architecture.md",
+                    "canton://docs/language-reference": "daml_language_reference.md",
+                    "canton://docs/chainsafe-mcp": "chainsafe_mcp_reference.md",
+                    "canton://docs/llm-architecture": "llm_architecture.md",
+                    "canton://docs/quickstart-demo": "canton_quickstart_demo.md",
+                    "canton://docs/daml-intro": "daml_introduction.md",
+                    "canton://docs/daml-patterns": "daml_patterns.md",
+                    "canton://docs/splice-overview": "splice_overview.md",
+                    "canton://docs/splice-scan-api": "splice_scan_api.md"
+                }
+                
+                if uri not in uri_to_file:
+                    raise HTTPException(status_code=404, detail=f"Resource '{uri}' not found")
+                
+                filename = uri_to_file[uri]
+                doc_path = DOCS_DIR / filename
+                
+                if doc_path.exists():
+                    content = doc_path.read_text()
+                else:
+                    content = f"Error: Documentation file {filename} not found."
+                
+                return {
+                    "contents": [{
+                        "uri": uri,
+                        "mimeType": "text/markdown",
+                        "text": content
+                    }]
+                }
+            except Exception as e:
+                raise HTTPException(status_code=500, detail=str(e))
         
         uvicorn.run(app, host=host, port=port)
     else:
