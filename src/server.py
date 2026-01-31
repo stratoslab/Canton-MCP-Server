@@ -69,6 +69,42 @@ def list_available_docs() -> str:
     
     return "Available Documentation Resources:\n" + "\n".join(doc_list)
 
+@mcp.resource("canton://docs/daml-intro")
+def get_daml_introduction() -> str:
+    """Returns the DAML Introduction and Tutorial."""
+    return _read_doc("daml_introduction.md")
+
+@mcp.resource("canton://docs/daml-patterns")
+def get_daml_patterns() -> str:
+    """Returns the DAML Design Patterns and Anti-Patterns guide."""
+    return _read_doc("daml_patterns.md")
+
+@mcp.tool()
+def add_documentation(filename: str, content: str, description: str = "") -> str:
+    """
+    Adds a new documentation file to the MCP server's knowledge base.
+    
+    Args:
+        filename: name of the file (e.g., 'my_guide.md')
+        content: The markdown content of the documentation
+        description: Short description of what this doc covers
+    """
+    if not filename.endswith(".md"):
+        filename += ".md"
+    
+    # Sanitize filename to prevent directory traversal
+    safe_filename = Path(filename).name
+    file_path = DOCS_DIR / safe_filename
+    
+    try:
+        if file_path.exists():
+            return f"Error: File '{safe_filename}' already exists. Please use a different name or manually update it."
+            
+        file_path.write_text(content)
+        return f"Successfully added documentation: {safe_filename}\nIt will be available via the 'list_available_docs' tool."
+    except Exception as e:
+        return f"Failed to save documentation: {str(e)}"
+
 # --- Tools ---
 
 @mcp.tool()
