@@ -182,4 +182,55 @@ def check_server_status() -> str:
 
 # Entry point for 'uv run'
 if __name__ == "__main__":
-    mcp.run()
+    import sys
+    
+    # Check if we're running in HTTP mode (for Docker)
+    if "--http" in sys.argv or os.getenv("MCP_HTTP_MODE"):
+        host = "0.0.0.0"
+        port = 8000
+        
+        # Parse command line arguments
+        for i, arg in enumerate(sys.argv):
+            if arg == "--host" and i + 1 < len(sys.argv):
+                host = sys.argv[i + 1]
+            elif arg == "--port" and i + 1 < len(sys.argv):
+                port = int(sys.argv[i + 1])
+        
+        # Use environment variables if available
+        host = os.getenv("HOST", host)
+        port = int(os.getenv("PORT", port))
+        
+        print(f"Starting Canton Ledgerview MCP Server on {host}:{port}")
+        
+        # Create a simple HTTP server that exposes MCP over HTTP
+        import uvicorn
+        from fastapi import FastAPI
+        from fastapi.responses import JSONResponse
+        
+        app = FastAPI(title="Canton Ledgerview MCP Server")
+        
+        @app.get("/")
+        async def root():
+            return {"message": "Canton Ledgerview MCP Server", "status": "running"}
+        
+        @app.get("/health")
+        async def health():
+            return {"status": "healthy"}
+        
+        @app.get("/tools")
+        async def list_tools():
+            return {
+                "tools": [
+                    "analyze_daml_safety",
+                    "generate_canton_deployment_script", 
+                    "get_project_summary",
+                    "check_server_status",
+                    "list_available_docs",
+                    "add_documentation"
+                ]
+            }
+        
+        uvicorn.run(app, host=host, port=port)
+    else:
+        # Default stdio mode for MCP
+        mcp.run()
